@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Genesis v6.0 // HYPER-SYSTEM</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+<style>
+    :root {
+        --c-cyan: #00f3ff;
+        --c-purple: #9d00ff;
+        --c-gold: #ffcc00;
+        --c-dark: #050505;
+        --hud-bg: rgba(0, 10, 20, 0.4);
+    }
+
+    body {
+        margin: 0;
+        overflow: hidden;
+        background: var(--c-dark);
+        font-family: 'Share Tech Mono', monospace;
+        color: var(--c-cyan);
+        cursor: crosshair; /* Cursor de mira para disparar */
+    }
+
+    /* --- CAPAS VISUALES --- */
+    .scanlines {
+        position: absolute; width: 100vw; height: 100vh;
+        background: repeating-linear-gradient(0deg, rgba(0,0,0,0.1) 0px, rgba(0, 243, 255, 0.02) 1px, transparent 2px, transparent 4px);
+        pointer-events: none; z-index: 10;
+    }
+    .vignette {
+        position: absolute; width: 100%; height: 100%;
+        background: radial-gradient(circle, transparent 40%, #000 130%);
+        pointer-events: none; z-index: 9;
+    }
+
+    /* --- UI HUD --- */
+    .hud {
+        position: absolute; width: 100%; height: 100%;
+        pointer-events: none; z-index: 20;
+        padding: 30px; box-sizing: border-box;
+        display: flex; flex-direction: column; justify-content: space-between;
+    }
+
+    /* Header Complejo */
+    .top-section {
+        display: flex; justify-content: space-between; align-items: flex-start;
+        border-top: 1px solid var(--c-cyan); padding-top: 10px;
+        background: linear-gradient(180deg, rgba(0,243,255,0.05) 0%, transparent 100%);
+    }
+    h1 { margin: 0; font-family: 'Rajdhani', sans-serif; font-size: 32px; letter-spacing: 4px; text-shadow: 0 0 15px var(--c-cyan); }
+    .status-badge {
+        background: var(--c-purple); color: #fff; padding: 2px 8px; font-size: 10px; border-radius: 2px;
+        box-shadow: 0 0 10px var(--c-purple); animation: blinkBadge 2s infinite;
+    }
+    @keyframes blinkBadge { 50% { opacity: 0.5; } }
+
+    /* Paneles Laterales Flotantes */
+    .panel-left, .panel-right {
+        position: absolute; top: 50%; transform: translateY(-50%);
+        width: 250px; background: var(--hud-bg);
+        border: 1px solid rgba(0, 243, 255, 0.2);
+        padding: 15px; backdrop-filter: blur(2px);
+    }
+    .panel-left { left: 30px; border-left: 4px solid var(--c-cyan); }
+    .panel-right { right: 30px; border-right: 4px solid var(--c-gold); text-align: right; }
+
+    .stat-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 2px;}
+    .stat-val { font-weight: bold; color: #fff; }
+
+    /* Registro de eventos (Log) */
+    .log-box {
+        height: 100px; overflow: hidden; font-size: 10px; color: rgba(255,255,255,0.6);
+        border-left: 1px solid var(--c-gold); padding-left: 10px; margin-top: 20px;
+    }
+    .log-entry { margin-bottom: 4px; }
+    .log-entry::before { content: '> '; color: var(--c-gold); }
+
+    /* Crosshair Central */
+    .reticle {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        width: 80px; height: 80px;
+        border: 1px solid rgba(255,255,255,0.2); border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .reticle::after { content: ''; width: 4px; height: 4px; background: var(--c-cyan); border-radius: 50%; box-shadow: 0 0 10px var(--c-cyan); }
+
+    /* Footer */
+    .bottom-bar {
+        display: flex; align-items: flex-end; gap: 20px;
+        border-bottom: 1px solid var(--c-cyan); padding-bottom: 10px;
+    }
+    .bar-graph {
+        display: flex; align-items: flex-end; gap: 2px; height: 30px;
+    }
+    .bar { width: 6px; background: var(--c-purple); animation: eq 1s ease-in-out infinite alternate; }
+    @keyframes eq { 0% { height: 20%; } 100% { height: 100%; } }
+
+</style>
+</head>
+<body>
+
+<div class="vignette"></div>
+<div class="scanlines"></div>
+
+<div class="hud">
+    <div class="top-section">
+        <div>
+            <h1>HYPER // SYSTEM</h1>
+            <span class="status-badge">LIVE SIMULATION</span>
+        </div>
+        <div style="text-align: right; font-size: 11px; opacity: 0.8;">
+            COORDS: 44.90.12<br>
+            SECTOR: ORION-Z
+        </div>
+    </div>
+
+    <div class="reticle"></div>
+
+    <div class="panel-left">
+        <div style="color:var(--c-cyan); margin-bottom:10px;">/// CORE TELEMETRY</div>
+        <div class="stat-row"><span>STRUCTURE:</span> <span class="stat-val">STABLE</span></div>
+        <div class="stat-row"><span>ROTATION:</span> <span class="stat-val">1,240 RPM</span></div>
+        <div class="stat-row"><span>ENERGY OUTPUT:</span> <span class="stat-val" id="energyVal">98.4%</span></div>
+        <div class="stat-row"><span>DRONES ACTIVE:</span> <span class="stat-val">32 UNITS</span></div>
+        <div class="log-box" id="sysLog">
+            <div class="log-entry">System initialized...</div>
+            <div class="log-entry">Nebula density: 84%</div>
+            <div class="log-entry">Beam containment: OK</div>
+        </div>
+    </div>
+
+    <div class="panel-right">
+        <div style="color:var(--c-gold); margin-bottom:10px;">/// TARGET INTERACTION</div>
+        <div class="stat-row"><span>CLICK TARGET:</span> <span class="stat-val">INITIATE PULSE</span></div>
+        <div class="stat-row"><span>DISTANCE:</span> <span class="stat-val" id="distVal">4.2 AU</span></div>
+        <br>
+        <div style="font-size:10px; opacity:0.7">CAUTION: HIGH RADIATION LEVELS DETECTED IN UPPER ATMOSPHERE.</div>
+    </div>
+
+    <div class="bottom-bar">
+        <div class="bar-graph">
+            <div class="bar" style="animation-delay: 0.1s"></div>
+            <div class="bar" style="animation-delay: 0.3s"></div>
+            <div class="bar" style="animation-delay: 0.5s; background:var(--c-cyan)"></div>
+            <div class="bar" style="animation-delay: 0.2s"></div>
+            <div class="bar" style="animation-delay: 0.4s; background:var(--c-cyan)"></div>
+            <div class="bar" style="animation-delay: 0.1s"></div>
+        </div>
+        <div style="font-size: 10px;">RENDER: WEBGL 2.0 // THREE.JS // POST-FX ENABLED</div>
+    </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+
+// --- 1. SETUP DE ESCENA ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x020205);
+scene.fog = new THREE.FogExp2(0x020205, 0.015);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+camera.position.set(0, 2, 12);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+// --- 2. PLANETA NÚCLEO (GEOMETRÍA COMPLEJA) ---
+const geometry = new THREE.IcosahedronGeometry(3, 60); 
+const pos = geometry.attributes.position;
+const colors = [];
+const colorA = new THREE.Color("#000000"); 
+const colorB = new THREE.Color("#00f3ff"); // Cyan glow
+const colorC = new THREE.Color("#5500ff"); // Purple shadows
+
+for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    
+    // Ruido para deformación
+    const n = Math.sin(x*2)*Math.cos(y*3) + Math.sin(z*5)*0.2;
+    const scale = 1 + n * 0.15;
+    
+    pos.setXYZ(i, x*scale, y*scale, z*scale);
+
+    // Color basado en elevación
+    let c = colorA.clone();
+    if(n > 0.1) c.lerp(colorB, n * 2); 
+    else c.lerp(colorC, Math.abs(n));
+    colors.push(c.r, c.g, c.b);
+}
+geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+geometry.computeVertexNormals();
+
+const planetMat = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    roughness: 0.4,
+    metalness: 0.8,
+    emissive: 0x001133,
+    emissiveIntensity: 0.5
+});
+const planet = new THREE.Mesh(geometry, planetMat);
+scene.add(planet);
+
+// --- 3. ANILLO DE ESCOMBROS/DRONES (ESCALA) ---
+// Pequeños objetos para dar sensación de tamaño al planeta
+const droneGroup = new THREE.Group();
+const droneGeo = new THREE.TetrahedronGeometry(0.08);
+const droneMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+
+for(let i=0; i<60; i++){
+    const mesh = new THREE.Mesh(droneGeo, droneMat);
+    // Orbitan a diferentes distancias
+    const dist = 4.5 + Math.random() * 2;
+    const angle = Math.random() * Math.PI * 2;
+    const yOff = (Math.random() - 0.5) * 1;
+    
+    mesh.position.set(Math.cos(angle)*dist, yOff, Math.sin(angle)*dist);
+    mesh.userData = { 
+        speed: 0.005 + Math.random() * 0.01, 
+        dist: dist, 
+        angle: angle,
+        yBase: yOff 
+    };
+    droneGroup.add(mesh);
+}
+scene.add(droneGroup);
+
+// --- 4. NEBULA PROCEDURAL (TEXTURE GEN) ---
+// Generar textura de humo en memoria para no cargar imagen externa
+const canvas = document.createElement('canvas');
+canvas.width = 32; canvas.height = 32;
+const ctx = canvas.getContext('2d');
+const grd = ctx.createRadialGradient(16,16,0,16,16,16);
+grd.addColorStop(0, 'rgba(255,255,255,1)');
+grd.addColorStop(1, 'rgba(0,0,0,0)');
+ctx.fillStyle = grd; ctx.fillRect(0,0,32,32);
+const smokeTexture = new THREE.CanvasTexture(canvas);
+
+const cloudGeo = new THREE.BufferGeometry();
+const cloudPos = [];
+for(let i=0; i<300; i++){ // 300 nubes
+    const r = 8 + Math.random() * 15;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.random() * Math.PI;
+    cloudPos.push(
+        r * Math.sin(phi) * Math.cos(theta),
+        r * Math.sin(phi) * Math.sin(theta),
+        r * Math.cos(phi)
+    );
+}
+cloudGeo.setAttribute('position', new THREE.Float32BufferAttribute(cloudPos, 3));
+const cloudMat = new THREE.PointsMaterial({
+    map: smokeTexture,
+    size: 6,
+    transparent: true,
+    opacity: 0.1, // Muy sutil
+    color: 0xbc13fe, // Humo púrpura
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+});
+const nebula = new THREE.Points(cloudGeo, cloudMat);
+scene.add(nebula);
+
+// --- 5. HAZ DE ENERGÍA DOBLE ---
+const beamGroup = new THREE.Group();
+
+// Haz Interno (Blanco sólido)
+const coreBeam = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.1, 0.1, 60, 16),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending })
+);
+beamGroup.add(coreBeam);
+
+// Haz Externo (Ruido Visual)
+const outerBeamGeo = new THREE.CylinderGeometry(0.6, 0.6, 60, 32, 10, true);
+const outerBeamMat = new THREE.ShaderMaterial({
+    uniforms: {
+        uTime: { value: 0 },
+        uColor: { value: new THREE.Color(0x00f3ff) }
+    },
+    vertexShader: `
+        varying vec2 vUv;
+        void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }
+    `,
+    fragmentShader: `
+        uniform float uTime;
+        uniform vec3 uColor;
+        varying vec2 vUv;
+        void main() {
+            float alpha = sin(vUv.y * 20.0 + uTime * 5.0) * 0.5 + 0.5; // Efecto de ondas
+            float fade = smoothstep(0.0, 0.2, vUv.y) * smoothstep(1.0, 0.8, vUv.y);
+            gl_FragColor = vec4(uColor, alpha * fade * 0.3);
+        }
+    `,
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+});
+const outerBeam = new THREE.Mesh(outerBeamGeo, outerBeamMat);
+beamGroup.add(outerBeam);
+scene.add(beamGroup);
+
+// --- 6. SHOCKWAVE EFFECT (AL HACER CLIC) ---
+const shockwaveGeo = new THREE.TorusGeometry(3.2, 0.1, 16, 100);
+const shockwaveMat = new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0 });
+const shockwave = new THREE.Mesh(shockwaveGeo, shockwaveMat);
+shockwave.rotation.x = Math.PI / 2;
+scene.add(shockwave);
+
+let shockwaveActive = false;
+let shockwaveScale = 1;
+
+// --- LUCES ---
+scene.add(new THREE.AmbientLight(0x111111));
+const sun = new THREE.PointLight(0xffffff, 200, 100);
+sun.position.set(10, 10, 10);
+scene.add(sun);
+const fill = new THREE.PointLight(0x9d00ff, 100, 100);
+fill.position.set(-10, -5, -10);
+scene.add(fill);
+
+// --- POST-PROCESADO ---
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 2.0, 0.4, 0.1);
+composer.addPass(bloom);
+
+// --- INPUT & INTERACCIÓN ---
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+window.addEventListener('click', (event) => {
+    // Calcular posición ratón normalizada
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObject(planet);
+
+    if (intersects.length > 0) {
+        triggerPulse();
+    }
+});
+
+function triggerPulse() {
+    // Resetear animación shockwave
+    shockwaveActive = true;
+    shockwaveScale = 1;
+    shockwave.material.opacity = 1;
+    
+    // Log en HTML
+    const log = document.getElementById('sysLog');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.innerText = "PULSE TRIGGERED - SECTOR 7";
+    entry.style.color = "#00f3ff";
+    log.prepend(entry);
+    
+    // Flash de luz
+    sun.intensity = 500;
+}
+
+// --- LOOP ANIMACIÓN ---
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.5;
+
+const clock = new THREE.Clock();
+
+function animate() {
+    requestAnimationFrame(animate);
+    const t = clock.getElapsedTime();
+    const dt = clock.getDelta();
+
+    // 1. Planeta
+    planet.rotation.y += 0.002;
+    
+    // 2. Drones (Movimiento Orbital)
+    droneGroup.children.forEach(d => {
+        d.userData.angle += d.userData.speed;
+        d.position.x = Math.cos(d.userData.angle) * d.userData.dist;
+        d.position.z = Math.sin(d.userData.angle) * d.userData.dist;
+        d.rotation.x += 0.02;
+        d.rotation.y += 0.02;
+    });
+
+    // 3. Nebulosa (Rotación lenta)
+    nebula.rotation.y = -t * 0.05;
+
+    // 4. Haz de energía
+    outerBeamMat.uniforms.uTime.value = t;
+    outerBeam.rotation.y -= 0.1; // Gira rápido
+
+    // 5. Animación Shockwave
+    if(shockwaveActive) {
+        shockwaveScale += 0.15;
+        shockwave.scale.setScalar(shockwaveScale);
+        shockwave.material.opacity -= 0.02;
+        if(shockwave.material.opacity <= 0) {
+            shockwaveActive = false;
+            shockwave.scale.setScalar(1);
+        }
+    }
+    
+    // Restaurar intensidad de luz tras clic
+    if(sun.intensity > 200) sun.intensity -= 10;
+
+    // UI Updates aleatorios
+    document.getElementById('energyVal').innerText = (90 + Math.sin(t*5)*8).toFixed(1) + "%";
+    document.getElementById('distVal').innerText = (4.2 + Math.cos(t)*0.1).toFixed(3) + " AU";
+
+    controls.update();
+    composer.render();
+}
+
+animate();
+
+// Resize
+window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    composer.setSize(window.innerWidth, window.innerHeight);
+});
+
+</script>
+</body>
+</html>
